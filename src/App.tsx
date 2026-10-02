@@ -82,20 +82,13 @@ export default function App() {
           lastSyncedAt: res.ok ? res.syncedAt : syncConfig.lastSyncedAt,
           lastSyncMessage: res.message,
         });
+        syncTimeoutRef.current = null;
       }, 900);
     },
     [syncConfig.scriptUrl, syncConfig.autoSync, syncConfig.lastSyncedAt, updateSyncConfig]
   );
 
-  useEffect(() => {
-    return () => {
-      if (syncTimeoutRef.current) {
-        window.clearTimeout(syncTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleManualPush = async () => {
+  const handleManualPush = useCallback(async () => {
     if (!syncConfig.scriptUrl.trim()) {
       setActiveTab('INTEGRATION');
       updateSyncConfig({
@@ -116,15 +109,17 @@ export default function App() {
       lastSyncedAt: res.ok ? res.syncedAt : syncConfig.lastSyncedAt,
       lastSyncMessage: res.message,
     });
-  };
+  }, [syncConfig.scriptUrl, syncConfig.lastSyncedAt, db, updateSyncConfig]);
 
-  const handleManualPull = async () => {
+  const handleManualPull = useCallback(async (silent = false) => {
     if (!syncConfig.scriptUrl.trim()) {
-      setActiveTab('INTEGRATION');
-      updateSyncConfig({
-        syncStatus: 'error',
-        lastSyncMessage: 'Silakan masukkan URL Web App Google Apps Script terlebih dahulu.',
-      });
+      if (!silent) {
+        setActiveTab('INTEGRATION');
+        updateSyncConfig({
+          syncStatus: 'error',
+          lastSyncMessage: 'Silakan masukkan URL Web App Google Apps Script terlebih dahulu.',
+        });
+      }
       return;
     }
 
@@ -133,16 +128,10 @@ export default function App() {
       lastSyncMessage: 'Menarik data terbaru dari Google Spreadsheet...',
     });
 
-    const res = await pullDatabaseFromSpreadsheet(syncConfig.scriptUrl);
+    const res = await pullDatabaseFromSpreadsheet(syncConfig.scriptUrl, db);
     if (res.ok && res.database) {
-      const mergedDb: AppDatabase = {
-        sessions: res.database.sessions.length > 0 ? res.database.sessions : db.sessions,
-        staff: res.database.staff.length > 0 ? res.database.staff : db.staff,
-        attendance: res.database.attendance,
-        badalEntries: res.database.badalEntries,
-      };
-      setDb(mergedDb);
-      saveLocalDatabase(mergedDb);
+      setDb(res.database);
+      saveLocalDatabase(res.database);
       updateSyncConfig({
         syncStatus: 'success',
         lastSyncedAt: res.syncedAt,
@@ -154,7 +143,31 @@ export default function App() {
         lastSyncMessage: res.message,
       });
     }
-  };
+  }, [syncConfig.scriptUrl, db, updateSyncConfig]);
+
+  // Auto-pull saat aplikasi pertama kali dibuka & saat kembali dari tab Google Spreadsheet (Window Focus)
+  useEffect(() => {
+    if (syncConfig.scriptUrl.trim()) {
+      handleManualPull(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncConfig.scriptUrl]);
+
+  useEffect(() => {
+    const onWindowFocus = () => {
+      // Jangan tarik jika sedang ada antrean pengiriman perubahan lokal
+      if (syncConfig.scriptUrl.trim() && syncConfig.autoSync && !syncTimeoutRef.current) {
+        handleManualPull(true);
+      }
+    };
+    window.addEventListener('focus', onWindowFocus);
+    return () => {
+      window.removeEventListener('focus', onWindowFocus);
+      if (syncTimeoutRef.current) {
+        window.clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, [syncConfig.scriptUrl, syncConfig.autoSync, handleManualPull]);
 
   // Attendance Handlers
   const handleUpsertAttendance = (
@@ -413,7 +426,8 @@ export default function App() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={handleManualPush}
+            onClick={() => handleManualPull(false)}
+            title="Tarik data terbaru dari Google Spreadsheet"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
           >
             <RefreshCw
@@ -509,7 +523,7 @@ export default function App() {
             syncConfig={syncConfig}
             onUpdateSyncConfig={updateSyncConfig}
             onPushToSpreadsheet={handleManualPush}
-            onPullFromSpreadsheet={handleManualPull}
+            onPullFromSpreadsheet={() => handleManualPull(false)}
             onImportDatabaseJson={(imported) => {
               setDb(imported);
               saveLocalDatabase(imported);

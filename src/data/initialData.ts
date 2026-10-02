@@ -436,23 +436,38 @@ function readSheetData(sheet) {
   const rows = sheet.getDataRange().getValues();
   if (rows.length <= 1) return [];
   const headers = rows[0];
+  const tz = Session.getScriptTimeZone() || 'Asia/Jakarta';
   const result = [];
   for (let i = 1; i < rows.length; i++) {
     const obj = {};
+    let hasContent = false;
     for (let j = 0; j < headers.length; j++) {
       let val = rows[i][j];
+      if (val !== '' && val !== null && val !== undefined) {
+        hasContent = true;
+      }
+      if (val instanceof Date) {
+        if (headers[j] === 'date') {
+          val = Utilities.formatDate(val, tz, 'yyyy-MM-dd');
+        } else {
+          val = val.toISOString();
+        }
+      }
       if (headers[j] === 'defaultSessionIds' && typeof val === 'string') {
-        try { val = JSON.parse(val); } catch (_) { val = val ? val.split(',') : []; }
+        try { val = JSON.parse(val); } catch (_) { val = val ? val.split(',').map(function(s){ return s.trim(); }) : []; }
       }
       if (headers[j] === 'active' || headers[j] === 'countInMonthlyRecap') {
-        val = val === true || val === 'TRUE' || val === 'true';
+        val = (val === '' || val === null || val === undefined) ? true : (val === true || val === 'TRUE' || val === 'true' || val === 1);
       }
       if (headers[j] === 'sortOrder') {
-        val = Number(val) || 1;
+        val = Number(val) || i;
       }
       obj[headers[j]] = val;
     }
-    if (obj.id) result.push(obj);
+    if (hasContent) {
+      if (!obj.id) obj.id = sheet.getName().toLowerCase() + '-row-' + i;
+      result.push(obj);
+    }
   }
   return result;
 }
