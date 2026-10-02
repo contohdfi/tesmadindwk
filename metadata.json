@@ -1,0 +1,6 @@
+{
+  "name": "SIM-Absensi MD Darul Lughah Wal Karomah",
+  "description": "Sistem Informasi Rekapitulasi Kehadiran Pengajar, Karyawan, dan Badal Madrasah Diniyah Darul Lughah Wal Karomah dengan Laporan Harian Per-KBM, Bulanan, Sinkronisasi Real-Time Google Spreadsheet via Apps Script API, serta Ekspor Laporan Kartu JPG siap WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

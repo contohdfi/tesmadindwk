@@ -1,0 +1,6 @@
+{
+  "summary":  "Rencana implementasi lengkap untuk Webapp Rekap Kehadiran Pengajar, Karyawan, dan Badal Madrasah Diniyah Darul Lughah Wal Karomah dengan laporan harian per-KBM, rekapitulasi bulanan, integrasi real-time Google Spreadsheet via Apps Script API, serta ekspor laporan format JPG yang dioptimalkan untuk grup WhatsApp.",
+  "updatedAt":  "2026-10-02T12:41:09.120801980Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
